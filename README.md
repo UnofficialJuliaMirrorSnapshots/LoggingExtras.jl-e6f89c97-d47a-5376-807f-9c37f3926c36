@@ -12,7 +12,7 @@ LoggingExtras is designs around allowing you to build arbitrarily complicated
 systems for "log plumbing". That is to say basically routing logged information to different places.
 It is built around the idea of simple parts which are composed together,
 to allow for powerful and flexible definition of your logging system.
-Without having to define any custom loggers by subtyping `AbstractLogger`.
+Without you having to define any custom loggers by subtyping `AbstractLogger`.
 When we talk about composability we mean to say that the composition of any set of Loggers is itself a Logger.
 LoggingExtras is a composable logging system.
 
@@ -37,7 +37,7 @@ and it has a min_enabled_level setting, that controls if it will accept a messag
 (Early Filtering, in particular see `MinLevelLogger`).
 If it was to be defined in a compositional way,
 we would write something along the lines of:
-```
+```julia
 ConsoleLogger(stream, min_level) =
     MinLevelLogger(
         ActiveFilteredLogger(max_log_filter,
@@ -58,27 +58,27 @@ Loggers can be constructed and used like normal.
 For full details, see the [Julia documentation on Logging](https://docs.julialang.org/en/v1/stdlib/Logging/index.html)
 
 To use a `logger` in a given scope do
-```
+```julia
 with_logger(logger) do
     #things
 end
 ```
 
 To make a logger the global logger, use
-```
+```julia
 global_logger(logger)
 ```
 
 to get the current global logger, use
-```
+```julia
 logger = global_logger()
 ```
 
 # Loggers introduced by this package:
 This package introduces 6 new loggers.
-The `DemuxLogger`, the `TransformerLogger`, 3 types of filtered logger, and the `FileLogger`.
+The `TeeLogger`, the `TransformerLogger`, 3 types of filtered logger, and the `FileLogger`.
 All of them just wrap existing loggers.
- - The `DemuxLogger` sends the logs to multiple different loggers.
+ - The `TeeLogger` sends the logs to multiple different loggers.
  - The `TransformerLogger` applies a function to modify log messages before passing them on.
  - The 3 filter loggers are used to control if a message is written or not
      - The `MinLevelLogger` only allowes messages to pass that are above a given level of severity
@@ -86,15 +86,15 @@ All of them just wrap existing loggers.
      - The `ActiveFilteredLogger` lets you filter based on the full content
  - The `FileLogger` is a simple logger sink that writes to file.
 
-By combining `DemuxLogger` with filter loggers you can arbitrarily route log messages, wherever you want.
+By combining `TeeLogger` with filter loggers you can arbitrarily route log messages, wherever you want.
 
 
-## `DemuxLogger`
+## `TeeLogger`
 
-The `DemuxLogger` sends the log messages to multiple places.
+The `TeeLogger` sends the log messages to multiple places.
 It takes a list of loggers.
-It also has the keyword argument `include_current_global`,
-to determine if you also want to log to the global logger.
+You often want to pass the `current_logger()` or `global_logger()`
+as one of those inputs so it keeps going to that one as well.
 
 It is up to those loggers to determine if they will accept it.
 Which they do using their methods for `shouldlog` and `min_enabled_level`.
@@ -111,17 +111,16 @@ It is really simple.
 The resulting file format is similar to that which is shown in the REPL.
 (Not identical, but similar)
 
-### Demo: `DemuxLogger` and `FileLogger`
+### Demo: `TeeLogger` and `FileLogger`
 We are going to log info and above to one file,
 and warnings and above to another.
 
-```
+```julia
 julia> using Logging; using LoggingExtras;
 
-julia> demux_logger = DemuxLogger(
+julia> demux_logger = TeeLogger(
     MinLevelLogger(FileLogger("info.log"), Logging.Info),
     MinLevelLogger(FileLogger("warn.log"), Logging.Warn),
-    include_current_global=false
 );
 
 
@@ -158,7 +157,7 @@ The filter function takes the full set of parameters of the message.
 ### Demo
 We want to filter to only log strings staring with `"Yo Dawg!"`.
 
-```
+```julia
 julia> function yodawg_filter(log_args)
     startswith(log_args.message, "Yo Dawg!")
 end
@@ -191,7 +190,7 @@ see the HTTP example below.
 
 Another example is using them to stop messages every being repeated within a given time period.
 
-```
+```julia
 using Dates, Logging, LoggingExtras
 
 julia> function make_throttled_logger(period)
@@ -243,7 +242,7 @@ and should return a new modified named tuple.
 
 A simple example of its use is truncating messages.
 
-```
+```julia
 julia> using Logging, LoggingExtras
 
 julia> truncating_logger  = TransformerLogger(global_logger()) do log
@@ -273,7 +272,7 @@ for example to set them all to the same `group`.
 
 ## Filter out any overly long messages
 
-```
+```julia
 using LoggingExtras
 using Logging
 
@@ -287,7 +286,7 @@ global_logger(ActiveFilteredLogger(sensible_message_filter, global_logger()))
 
 ## Filterout any messages from HTTP
 
-```
+```julia
 using LoggingExtras
 using Logging
 using HTTP
@@ -301,7 +300,7 @@ global_logger(EarlyFilteredLogger(not_HTTP_message_filter, global_logger()))
 
 ## Raising HTTP debug level errors to be Info level
 
-```
+```julia
 using LoggingExtras
 using Logging
 using HTTP
